@@ -73,7 +73,7 @@ def svm_fit (X,labels):
     auc = []
 
     for i in xrange(5):
-        X_train, X_test, y_train, y_test = train_test_split(X, labels,test_size=0.3,random_state=randint(0,100))
+        X_train, X_test, y_train, y_test = train_test_split(X, labels,test_size=0.1,random_state=randint(0,100))
         print 'shape of train and test arrays: ', X_train.shape, X_test.shape
 
 
@@ -99,6 +99,35 @@ def svm_fit (X,labels):
         #explain_svm(best_model,vocab)
 
     mean_stds = print_mean_std(acc,p,r,f,auc)
+    return mean_stds
+
+def threshold_sim_eval(x_1,x_2,labels,threshold=0.7):
+    acc = []
+    p = []
+    r = []
+    f = []
+    auc = []
+    for i in xrange(5):
+        X = zip(x_1,x_2)
+        X_train, X_test, y_train, y_test = train_test_split(X, labels, test_size=0.3, random_state=randint(0, 100))
+        del X_train
+        del y_train
+        y_pred = []
+        for q1_vector, q2_vector in X_test:
+            sim = q1_vector.dot(q2_vector.T)
+            if sim >= threshold:
+                y_pred.append(1)
+            else:
+                y_pred.append(0)
+        acc.append(accuracy_score(y_test, y_pred))
+        p.append(precision_score(y_test, y_pred))
+        r.append(recall_score(y_test, y_pred))
+        f.append(f1_score(y_test, y_pred))
+        auc.append(roc_auc_score(y_test, y_pred))
+        print 'run: ', i + 1
+        print classification_report(y_test, y_pred)
+
+    mean_stds = print_mean_std(acc, p, r, f, auc)
     return mean_stds
 
 # def dt_fit (train,labels,vocab):
