@@ -12,6 +12,10 @@ from collections import Counter
 from sklearn.linear_model import LogisticRegression
 from pprint import pprint
 from utils import *
+import xgboost
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+from sklearn.neural_network import MLPClassifier
 
 best_lr = LogisticRegression(C=1000, class_weight='balanced', dual=False,
       fit_intercept=True, intercept_scaling=1, max_iter=100,
@@ -65,7 +69,7 @@ def print_mean_std (acc,p,r,f,auc):
 
 
 
-def svm_fit (X,labels):
+def svm_fit (X,labels,test_size=0.1):
     acc = []
     p = []
     r = []
@@ -73,7 +77,7 @@ def svm_fit (X,labels):
     auc = []
 
     for i in xrange(5):
-        X_train, X_test, y_train, y_test = train_test_split(X, labels,test_size=0.1,random_state=randint(0,100))
+        X_train, X_test, y_train, y_test = train_test_split(X, labels,test_size=test_size,random_state=randint(0,100))
         print 'shape of train and test arrays: ', X_train.shape, X_test.shape
 
 
@@ -101,7 +105,7 @@ def svm_fit (X,labels):
     mean_stds = print_mean_std(acc,p,r,f,auc)
     return mean_stds
 
-def threshold_sim_eval(x_1,x_2,labels,threshold=0.7):
+def threshold_sim_eval(x_1,x_2,labels,threshold=0.7,test_size=0.1):
     acc = []
     p = []
     r = []
@@ -109,7 +113,7 @@ def threshold_sim_eval(x_1,x_2,labels,threshold=0.7):
     auc = []
     for i in xrange(5):
         X = zip(x_1,x_2)
-        X_train, X_test, y_train, y_test = train_test_split(X, labels, test_size=0.3, random_state=randint(0, 100))
+        X_train, X_test, y_train, y_test = train_test_split(X, labels, test_size=test_size, random_state=randint(0, 100))
         del X_train
         del y_train
         y_pred = []
@@ -128,6 +132,81 @@ def threshold_sim_eval(x_1,x_2,labels,threshold=0.7):
         print classification_report(y_test, y_pred)
 
     mean_stds = print_mean_std(acc, p, r, f, auc)
+    return mean_stds
+
+def xgboost_fit (X,labels,test_size=0.1):
+    n_pos_samples = list(labels).count(1)
+    n_neg_samples = list(labels).count(0)
+    neg_pos_ratio = float(n_neg_samples) / n_pos_samples
+
+    acc = []
+    p = []
+    r = []
+    f = []
+    auc = []
+    for i in xrange(5):
+        X_train, X_test, y_train, y_test = train_test_split(X, labels, test_size=test_size, random_state=randint(0, 100))
+        accs = []
+        classifiers = []
+        for depth in [2, 10, 50, 100]:
+            xgb_classifier = xgboost.XGBClassifier(max_depth=depth,
+                                                   scale_pos_weight=neg_pos_ratio,
+                                                   silent=1,
+                                                   )
+            kfold = KFold(n_splits=3, random_state=randint(0, 100))
+            results = cross_val_score(xgb_classifier, X_train, y_train, cv=kfold, n_jobs=-1)
+            avg_acc = results.mean() * 100
+            accs.append(avg_acc)
+            classifiers.append(xgb_classifier)
+
+        best_classifier = classifiers[accs.index(max(accs))]
+        print 'best xgboost classifier', best_classifier
+
+        best_classifier.fit(X_train, y_train)
+        y_pred = best_classifier.predict(X_test)
+        acc.append(accuracy_score(y_test, y_pred))
+        p.append(precision_score(y_test, y_pred))
+        r.append(recall_score(y_test, y_pred))
+        f.append(f1_score(y_test, y_pred))
+        auc.append(roc_auc_score(y_test, y_pred))
+        print 'run: ', i + 1
+        print classification_report(y_test, y_pred)
+
+    mean_stds = print_mean_std(acc, p, r, f, auc)
+    return mean_stds
+
+def mlp_fit (X,labels,test_size=0.1):
+    acc = []
+    p = []
+    r = []
+    f = []
+    auc = []
+
+    for i in xrange(5):
+        X_train, X_test, y_train, y_test = train_test_split(X, labels,test_size=test_size,random_state=randint(0,100))
+        print 'shape of train and test arrays: ', X_train.shape, X_test.shape
+
+
+        #perform cv
+        params = {'activation':['logistic','relu','tanh'],
+                  'solver':['sgd','adam']}
+        clf = GridSearchCV(MLPClassifier(), params,n_jobs=-1,scoring='roc_auc',cv=3,verbose=2)
+        clf.fit(X_train, y_train)
+        best_model = clf.best_estimator_
+        print 'seleced best model: ', best_model
+
+        #retrain best model
+        best_model.fit(X_train,y_train)
+        y_pred =  best_model.predict(X_test)
+        acc.append(accuracy_score(y_test, y_pred))
+        p.append(precision_score(y_test, y_pred))
+        r.append(recall_score(y_test, y_pred))
+        f.append(f1_score(y_test, y_pred))
+        auc.append(roc_auc_score(y_test, y_pred))
+        print 'run: ', i + 1
+        print classification_report(y_test, y_pred)
+
+    mean_stds = print_mean_std(acc,p,r,f,auc)
     return mean_stds
 
 # def dt_fit (train,labels,vocab):
