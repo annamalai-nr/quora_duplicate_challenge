@@ -5,3 +5,5 @@
 *pyc
 embeddings/*
 data/*
+*h5
+*pkl
