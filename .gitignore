@@ -7,3 +7,4 @@ embeddings/*
 data/*
 *h5
 *pkl
+*npy
