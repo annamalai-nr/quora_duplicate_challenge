@@ -33,13 +33,21 @@ def create_graphs_of_words(docs, window_size):
     degs = []
 
     for doc in docs:
+        words_list,pos_list = doc
         G = nx.Graph()
-        for i in range(len(doc)):
-            if doc[i] not in G.nodes():
-                G.add_node(doc[i])
+        for i in range(len(words_list)):
+            if words_list[i] not in G.nodes():
+                G.add_node(words_list[i])
             for j in range(i+1, i+window_size):
-                if j < len(doc):
-                    G.add_edge(doc[i], doc[j])
+                if j < len(words_list):
+                    G.add_edge(words_list[i], words_list[j])
+
+        # for i in range(len(pos_list)):
+        #     if pos_list[i] not in G.nodes():
+        #         G.add_node(pos_list[i])
+        #     for j in range(i+1, i+window_size):
+        #         if j < len(pos_list):
+        #             G.add_edge(pos_list[i], pos_list[j])
 
         graphs.append(G)
         sizes.append(G.number_of_nodes())
@@ -74,46 +82,6 @@ def spgk(sp_g1, sp_g2, norm1, norm2):
 
         return kernel_value
 
-
-def build_kernel_matrix(graphs, depth):
-    """
-    Build kernel matrices
-
-    """
-    sp = []
-    norm = []
-
-    for g in graphs:
-        current_sp = nx.all_pairs_dijkstra_path_length(g, cutoff=depth)
-        sp.append(current_sp)
-
-        sp_g = nx.Graph()
-        for node in current_sp:
-            for neighbor in current_sp[node]:
-                if node == neighbor:
-                    sp_g.add_edge(node, node, weight=1.0)
-                else:
-                    sp_g.add_edge(node, neighbor, weight=1.0/current_sp[node][neighbor])
-
-        M = nx.to_numpy_matrix(sp_g)
-        norm.append(np.linalg.norm(M,'fro'))
-
-    K = np.zeros((len(graphs), len(graphs)))
-
-    print "\nKernel computation progress:"
-    last_len = 0
-    for i in range(len(graphs)):
-        sys.stdout.write('\b' * last_len)
-        pct = 100 * (i+1) / len(graphs)
-        out = '{}% [{}/{}]'.format(pct, i+1, len(graphs))
-        last_len = len(out)
-        sys.stdout.write(out)
-        sys.stdout.flush()
-        for j in range(i,len(graphs)):
-            K[i,j] = spgk(sp[i], sp[j], norm[i], norm[j])
-            K[j,i] = K[i,j]
-
-    return K
 
 
 def compute_spgraph_and_norm(graphs,depth):
@@ -215,22 +183,33 @@ def predict (kernel_values,labels,test_size=0.1,n_runs=5):
 
 
 def main():
-    question_pairs, labels = load_dataset(load_n=10000)
+    question_pairs, labels = load_dataset(load_n=None)
     labels = np.array(labels)
     q1s,q2s = zip(*question_pairs)
-    window_size = 2
-    depth = 1
+    window_size = 3
+    depth = 2
 
-    docs1 = []
+    docs1 = [];pos1=[]
     for q in q1s:
-        words = [w for w in word_tokenize(q) if w.isalpha()]
+        words = [w for w in word_tokenize(q)]
+        pos_tags = nltk.pos_tag(words)
+        try:
+            words,pos_tags = zip(*[(w,pos) for w,pos in pos_tags if w.isalpha()])
+        except:
+            docs1.append(['invalid_question','XX'])
         docs1.append([stemmer.stem(w) for w in words])
+        pos1.append(pos_tags)
 
-    docs2 = []
+    docs2 = [];pos2=[]
     for q in q2s:
-        words = [w for w in word_tokenize(q) if w.isalpha()]
+        words = [w for w in word_tokenize(q)]
+        pos_tags = nltk.pos_tag(words)
+        try:
+            words, pos_tags = zip(*[(w, pos) for w, pos in pos_tags if w.isalpha()])
+        except:
+            docs2.append(['invalid_question', 'XX'])
         docs2.append([stemmer.stem(w) for w in words])
-
+        pos2.append(pos_tags)
 
 
     vocab1 = set([w for d in docs1 for w in d])
@@ -240,15 +219,13 @@ def main():
 
     print "\nVocabulary size: ",len(vocab), vocab
 
-    graphs1 = create_graphs_of_words(docs1, window_size)
-    graphs2 = create_graphs_of_words(docs2, window_size)
+    graphs1 = create_graphs_of_words(zip(docs1,pos1), window_size)
+    graphs2 = create_graphs_of_words(zip(docs2,pos2), window_size)
 
     graphs = zip(graphs1,graphs2)
     kernel_values = build_kernel_matrix_for_pairs(graphs, depth)
 
     predict (kernel_values,labels)
-
-    # learn_model_and_predict_k_fold(K, labels)
 
 
 if __name__ == "__main__":
