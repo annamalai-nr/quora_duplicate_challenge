@@ -31,10 +31,8 @@ vectorizer = TfidfVectorizer(lowercase=True,ngram_range=(1,3),
 x_1 = vectorizer.fit_transform(question1)
 x_2 = vectorizer.fit_transform(question2)
 svd = TruncatedSVD(n_components=1000)
-print x_1.shape, x_2.shape
 x_1 = svd.fit_transform(x_1)
 x_2 = svd.fit_transform(x_2)
-print x_1.shape, x_2.shape
 try:
     x = hstack([x_1,x_2])
 except:
