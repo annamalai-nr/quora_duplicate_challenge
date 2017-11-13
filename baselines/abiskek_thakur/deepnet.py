@@ -15,7 +15,7 @@ from keras import backend as K
 from keras.layers.advanced_activations import PReLU
 from keras.preprocessing import sequence, text
 
-data = pd.read_csv('../../data/quora_duplicate_questions.tsv', sep='\t')#[:10000]
+data = pd.read_csv('../../data/quora_duplicate_questions.tsv', sep='\t')[:10000]
 print 'loaded {} samples'.format(len(data))
 
 y = data.is_duplicate.values
@@ -175,5 +175,6 @@ merged_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc
 
 checkpoint = ModelCheckpoint('weights.h5', monitor='val_acc', save_best_only=True, verbose=2)
 
-merged_model.fit([x1, x2, x1, x2, x1, x2], y=y, batch_size=384, nb_epoch=200,
+# merged_model.fit([x1, x2, x1, x2, x1, x2], y=y, batch_size=384, nb_epoch=200,
+merged_model.fit([x1, x2, x1, x2, x1, x2], y=y, batch_size=128, nb_epoch=200,
                  verbose=1, validation_split=0.1, shuffle=True, callbacks=[checkpoint])
