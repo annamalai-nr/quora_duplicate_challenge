@@ -30,9 +30,9 @@ vectorizer = TfidfVectorizer(lowercase=True,ngram_range=(1,3),
                              stop_words='english',vocabulary=vocab)
 x_1 = vectorizer.fit_transform(question1)
 x_2 = vectorizer.fit_transform(question2)
-svd = TruncatedSVD(n_components=1000)
-x_1 = svd.fit_transform(x_1)
-x_2 = svd.fit_transform(x_2)
+# svd = TruncatedSVD(n_components=1000)
+# x_1 = svd.fit_transform(x_1)
+# x_2 = svd.fit_transform(x_2)
 try:
     x = hstack([x_1,x_2])
 except:
